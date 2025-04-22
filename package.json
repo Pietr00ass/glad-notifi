@@ -1,21 +1,20 @@
 {
   "name": "gladiatus-discord-bot",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "main": "server.js",
   "scripts": {
-  "start": "node server.js",
-  "deploy-commands": "node deploy-commands.js",
-  "start": "node server.js"
+    "deploy-commands": "node deploy-commands.js",
+    "start": "node deploy-commands.js && node server.js"
   },
   "engines": {
     "node": ">=16.0.0"
   },
-  "dependencies": {
-    "express": "^4.18.2",
-    "discord-interactions": "*",
+ "dependencies": {
     "discord.js": "^14.7.1",
-    "dotenv": "^16.0.0"
+    "discord-interactions": "*",
+    "dotenv": "^16.0.0",
+    "express": "^4.18.2"
   }
 
   }
