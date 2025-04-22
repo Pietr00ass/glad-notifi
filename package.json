@@ -1,6 +1,7 @@
 {
   "name": "gladiatus-discord-bot",
   "version": "1.0.1",
+  "type": "module",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
