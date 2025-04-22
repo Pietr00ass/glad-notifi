@@ -1,12 +1,14 @@
+// server.js
 import express from 'express';
 import { InteractionType, verifyKeyMiddleware } from 'discord-interactions';
 
 const app = express();
 
-// --- PAMIĘĆ STATYSTYK ---
+// **PAMIĘĆ STATYSTYK** (bez zmian)
 let lastStats = { level: '', xp: '', gold: '' };
 
-// 1) Endpoint do aktualizacji statystyk z rozszerzenia
+// **1. Endpoint do aktualizacji statystyk z rozszerzenia**  
+//    - tutaj używamy express.json(), bo to normalny JSON
 app.post('/updateStats', express.json(), (req, res) => {
   const { level, xp, gold } = req.body;
   console.log('[Server] Received stats:', req.body);
@@ -14,23 +16,32 @@ app.post('/updateStats', express.json(), (req, res) => {
   res.sendStatus(204);
 });
 
-// 2) Endpoint Interactions – raw body + weryfikacja podpisu
+// **2. Endpoint Interactions**  
+//    - całkowicie bez globalnego JSON parsera!
+//    - express.raw() przechwytuje surowe body  
 app.post(
   '/interactions',
   express.raw({ type: 'application/json' }),
   verifyKeyMiddleware(process.env.PUBLIC_KEY),
   (req, res) => {
-    const body = JSON.parse(req.body.toString());
+    let bodyJson;
+    try {
+      // Z buforka zamieniamy na string i parsujemy
+      bodyJson = JSON.parse(req.body.toString('utf8'));
+    } catch (err) {
+      console.error('[Server] Invalid JSON:', err);
+      return res.sendStatus(400);
+    }
 
     // Ping / Pong
-    if (body.type === InteractionType.PING) {
+    if (bodyJson.type === InteractionType.PING) {
       return res.send({ type: 1 });
     }
 
     // Slash Command: /stats
     if (
-      body.type === InteractionType.APPLICATION_COMMAND &&
-      body.data.name === 'stats'
+      bodyJson.type === InteractionType.APPLICATION_COMMAND &&
+      bodyJson.data.name === 'stats'
     ) {
       const stats = lastStats;
       return res.send({
@@ -41,10 +52,13 @@ app.post(
       });
     }
 
-    // Inne
+    // Nieobsługiwane
     res.sendStatus(400);
   }
 );
+
+// **UWAGA**: ŻADNE app.use(express.json()) ani inny parser w global scope!
+// Jeśli masz, to go **usuń** lub zakomentuj.
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`⚡ Listening on ${PORT}`));
