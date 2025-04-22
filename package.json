@@ -11,6 +11,10 @@
   },
   "dependencies": {
     "express": "^4.18.2",
-    "discord-interactions": "*"
+    "discord-interactions": "*",
+    "discord.js": "^14.7.1",
+    "dotenv": "^16.0.0"
+}
+
   }
 }
