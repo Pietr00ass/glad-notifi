@@ -1,14 +1,14 @@
 // server.js
 import express from 'express';
 import { InteractionType, verifyKeyMiddleware } from 'discord-interactions';
+import 'dotenv/config';
 
 const app = express();
 
-// **PAMIĘĆ STATYSTYK** (bez zmian)
+// --- 1) PAMIĘĆ NAJŚWIEŻSZYCH STATYSTYK ---
 let lastStats = { level: '', xp: '', gold: '' };
 
-// **1. Endpoint do aktualizacji statystyk z rozszerzenia**  
-//    - tutaj używamy express.json(), bo to normalny JSON
+// --- 2) Endpoint do aktualizacji statystyk z rozszerzenia ---
 app.post('/updateStats', express.json(), (req, res) => {
   const { level, xp, gold } = req.body;
   console.log('[Server] Received stats:', req.body);
@@ -16,24 +16,16 @@ app.post('/updateStats', express.json(), (req, res) => {
   res.sendStatus(204);
 });
 
-// **2. Endpoint Interactions**  
-//    - całkowicie bez globalnego JSON parsera!
-//    - express.raw() przechwytuje surowe body  
+// --- 3) Endpoint Discord Interactions (/interactions) ---
+//     Używamy raw body + verifyKeyMiddleware
 app.post(
   '/interactions',
   express.raw({ type: 'application/json' }),
   verifyKeyMiddleware(process.env.PUBLIC_KEY),
   (req, res) => {
-    let bodyJson;
-    try {
-      // Z buforka zamieniamy na string i parsujemy
-      bodyJson = JSON.parse(req.body.toString('utf8'));
-    } catch (err) {
-      console.error('[Server] Invalid JSON:', err);
-      return res.sendStatus(400);
-    }
+    const bodyJson = req.body; // już jest obiektem dzięki middleware
 
-    // Ping / Pong
+    // PING / PONG
     if (bodyJson.type === InteractionType.PING) {
       return res.send({ type: 1 });
     }
@@ -52,13 +44,11 @@ app.post(
       });
     }
 
-    // Nieobsługiwane
+    // Nieznane żądanie
     res.sendStatus(400);
   }
 );
 
-// **UWAGA**: ŻADNE app.use(express.json()) ani inny parser w global scope!
-// Jeśli masz, to go **usuń** lub zakomentuj.
-
+// --- 4) START SERWERA ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`⚡ Listening on ${PORT}`));
