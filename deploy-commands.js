@@ -3,9 +3,7 @@ import 'dotenv/config';
 import { REST } from '@discordjs/rest';
 import { Routes } from 'discord-api-types/v10';
 
-const BOT_TOKEN   = process.env.BOT_TOKEN;
-const CLIENT_ID   = process.env.CLIENT_ID;
-const GUILD_ID    = process.env.GUILD_ID;  // do testów możesz zostawić, dla globalnych komend pomiń
+const { APP_ID, GUILD_ID, BOT_TOKEN } = process.env;
 
 if (!BOT_TOKEN || !CLIENT_ID || !GUILD_ID) {
   console.error('❌ Missing one of required env vars: BOT_TOKEN, CLIENT_ID, GUILD_ID');
