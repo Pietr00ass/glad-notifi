@@ -5,10 +5,10 @@ import 'dotenv/config';
 
 const app = express();
 
-// --- 1) PAMIĘĆ NAJŚWIEŻSZYCH STATYSTYK ---
+// PAMIĘĆ: ostatnie statystyki
 let lastStats = { level: '', xp: '', gold: '' };
 
-// --- 2) Endpoint do aktualizacji statystyk z rozszerzenia ---
+// 1) Endpoint, na który strzelasz z background.js
 app.post('/updateStats', express.json(), (req, res) => {
   const { level, xp, gold } = req.body;
   console.log('[Server] Received stats:', req.body);
@@ -16,39 +16,41 @@ app.post('/updateStats', express.json(), (req, res) => {
   res.sendStatus(204);
 });
 
-// --- 3) Endpoint Discord Interactions (/interactions) ---
-//     Używamy raw body + verifyKeyMiddleware
+// 2) Endpoint Discord Interactions: raw body + podpis + obsługa
 app.post(
   '/interactions',
   express.raw({ type: 'application/json' }),
   verifyKeyMiddleware(process.env.PUBLIC_KEY),
   (req, res) => {
-    const bodyJson = req.body; // już jest obiektem dzięki middleware
+    // req.body jest już obiektem JSON dzięki middleware
+    const bodyJson = req.body;
+    console.log('[Server] Interaction payload:', bodyJson);
 
-    // PING / PONG
+    // PING?
     if (bodyJson.type === InteractionType.PING) {
       return res.send({ type: 1 });
     }
 
-    // Slash Command: /stats
+    // /stats?
     if (
       bodyJson.type === InteractionType.APPLICATION_COMMAND &&
       bodyJson.data.name === 'stats'
     ) {
-      const stats = lastStats;
+      const { level, xp, gold } = lastStats;
       return res.send({
-        type: 4, // CHANNEL_MESSAGE_WITH_SOURCE
+        type: 4,
         data: {
-          content: `Poziom: ${stats.level}, XP: ${stats.xp}, Złoto: ${stats.gold}`
+          content: `Poziom: ${level}, XP: ${xp}, Złoto: ${gold}`
         }
       });
     }
 
-    // Nieznane żądanie
-    res.sendStatus(400);
+    // Inne: bad request
+    return res.sendStatus(400);
   }
 );
 
-// --- 4) START SERWERA ---
+// Uwaga: nie ma tu nigdzie JSON.parse ani app.use(express.json()) poza updateStats!
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`⚡ Listening on ${PORT}`));
