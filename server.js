@@ -1,10 +1,12 @@
 // server.js
 import express from 'express';
+import cors from 'cors';
 import { InteractionType, verifyKeyMiddleware } from 'discord-interactions';
 import 'dotenv/config';
 
 const app = express();
 
+app.use(cors());
 // PAMIĘĆ: ostatnie statystyki
 let lastStats = { level: '', xp: '', gold: '' };
 
