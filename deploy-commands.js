@@ -1,14 +1,12 @@
 // deploy-commands.js
-import { REST, Routes } from 'discord.js';
 import 'dotenv/config';
-
-// Weź APP_ID, GUILD_ID i BOT_TOKEN z process.env
-const { APP_ID, GUILD_ID, BOT_TOKEN } = process.env;
+import { REST } from '@discordjs/rest';
+import { Routes } from 'discord-api-types/v10';
 
 const commands = [
   {
     name: 'stats',
-    description: 'Pobierz bieżące statystyki gracza'
+    description: 'Pobierz statystyki wszystkich Twoich kont'
   },
   {
     name: 'token',
@@ -16,17 +14,22 @@ const commands = [
   }
 ];
 
-const rest = new REST({ version: '10' }).setToken(BOT_TOKEN);
+const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
 
 (async () => {
   try {
     console.log('🔄 Refreshing slash commands...');
+
     await rest.put(
-      Routes.applicationGuildCommands(APP_ID, GUILD_ID),
+      Routes.applicationGuildCommands(
+        process.env.CLIENT_ID,    // Twój Application (Client) ID
+        process.env.GUILD_ID      // ID testowego serwera (lub usuwasz _Guild_ żeby globalne)
+      ),
       { body: commands }
     );
+
     console.log('✅ Slash commands registered!');
   } catch (error) {
-    console.error('❌ Error registering commands:', error);
+    console.error('❌ Error registering slash commands:', error);
   }
 })();
