@@ -9,6 +9,10 @@ const commands = [
   {
     name: 'stats',
     description: 'Pobierz bieżące statystyki gracza'
+  },
+  {
+    name: 'token',
+    description: 'Wygeneruj swój API Token'
   }
 ];
 
