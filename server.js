@@ -1,6 +1,7 @@
 // server.js
 import express from 'express';
 import cors from 'cors';
+import crypto from 'node:crypto';
 import { InteractionType, verifyKeyMiddleware } from 'discord-interactions';
 import 'dotenv/config';
 
@@ -9,53 +10,83 @@ const app = express();
 // 1) Health-check
 app.get('/', (req, res) => res.send('OK'));
 
-// 2) Globalne CORS + preflight dla każdej trasy
+// 2) CORS + preflight
 app.use(cors());
 app.options('*', cors());
 
-// 3) JSON parser tylko dla updateStats
+// 3) Parsowanie JSON tylko dla updateStats
 app.use('/updateStats', express.json());
 
-// 4) Pamięć na ostatnie statystyki
-let lastStats = { level: '', xp: '', gold: '' };
+// —————————————————————————————————————————————
+// 4) Pamięć w RAM (w produkcji: baza danych)
+const tokens   = {};   // { discordUserId: apiToken }
+const allStats = {};   // { discordUserId: { accountName: { level, xp, gold } } }
 
-// 5) Endpoint do aktualizacji statystyk
-app.post('/updateStats', (req, res) => {
-  console.log('[Server] Received stats:', req.body);
-  lastStats = req.body;
-  res.sendStatus(204);
-});
-
-// 6) Endpoint Discord Interactions
+// —————————————————————————————————————————————
+// 5) Slash-komendy: /interactions
 app.post(
   '/interactions',
   express.raw({ type: 'application/json' }),
   verifyKeyMiddleware(process.env.PUBLIC_KEY),
   (req, res) => {
-    console.log('[Server] Interaction payload:', req.body);
+    const body = JSON.parse(req.body.toString());
+    const userId = body.member.user.id;
 
-    // Pong
-    if (req.body.type === InteractionType.PING) {
+    // a) Pong
+    if (body.type === InteractionType.PING) {
       return res.send({ type: 1 });
     }
-    // /stats
-    if (
-      req.body.type === InteractionType.APPLICATION_COMMAND &&
-      req.body.data.name === 'stats'
-    ) {
-      const { level, xp, gold } = lastStats;
+
+    // b) /token — generujemy lub odświeżamy token
+    if (body.type === InteractionType.APPLICATION_COMMAND && body.data.name === 'token') {
+      const apiToken = crypto.randomUUID();
+      tokens[userId] = apiToken;
       return res.send({
         type: 4,
         data: {
-          content: `Poziom: ${level}, XP: ${xp}, Złoto: ${gold}`
+          content: `🔑 **Twój API Token:** \`${apiToken}\`\nWklej go w rozszerzeniu, podaj też nazwę konta.`
         }
       });
     }
 
-    res.sendStatus(400);
+    // c) /stats — wypisujemy wszystkie konta zebrane pod tym tokenem
+    if (body.type === InteractionType.APPLICATION_COMMAND && body.data.name === 'stats') {
+      const statsMap = allStats[userId] || {};
+      const lines = Object.entries(statsMap).map(
+        ([acct, s]) => `• **${acct}** – Poziom: ${s.level}, XP: ${s.xp}, Złoto: ${s.gold}`
+      );
+      const reply = lines.length
+        ? `📊 **Twoje konta:**\n${lines.join('\n')}`
+        : '❗ Nie masz jeszcze żadnych kont. Użyj `/token`, skonfiguruj rozszerzenie i odśwież grę.';
+      return res.send({ type: 4, data: { content: reply } });
+    }
+
+    // nieobsługiwane
+    return res.sendStatus(400);
   }
 );
 
-// 7) Start
+// —————————————————————————————————————————————
+// 6) Endpoint do aktualizacji statystyk z rozszerzenia
+app.post('/updateStats', (req, res) => {
+  const { token, account, level, xp, gold } = req.body;
+
+  // znajdź usera po tokenie
+  const userId = Object.entries(tokens).find(([, t]) => t === token)?.[0];
+  if (!userId) {
+    console.warn('[Server] Invalid token:', token);
+    return res.sendStatus(403);
+  }
+
+  // zainicjalizuj mapę jeśli potrzeba
+  allStats[userId] ||= {};
+  allStats[userId][account] = { level, xp, gold };
+  console.log(`[Server] Updated stats for ${userId}:${account}`, allStats[userId][account]);
+
+  return res.sendStatus(204);
+});
+
+// —————————————————————————————————————————————
+// 7) Start serwera
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`⚡ Listening on ${PORT}`));
